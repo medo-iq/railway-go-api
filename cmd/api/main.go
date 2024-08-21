@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,12 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
+}
+
+type ResponseData struct {
+	Message    string    `json:"message"`
+	Data       []string  `json:"data"`
+	FetchTime  float64   `json:"fetch_time"` // Time in milliseconds
 }
 
 func main() {
@@ -65,8 +72,30 @@ func main() {
 // Define the routes method
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World!")
-	})
+	mux.HandleFunc("/data", app.dataHandler)
 	return mux
+}
+
+func (app *application) dataHandler(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+
+	// Simulate data fetching
+	data := []string{"item1", "item2", "item3"}
+
+	// Measure fetch time
+	fetchTime := time.Since(startTime).Seconds() * 1000 // Time in milliseconds
+
+	response := ResponseData{
+		Message:   "Data fetched successfully",
+		Data:      data,
+		FetchTime: fetchTime,
+	}
+
+	// Set response header and write JSON response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		app.logger.Error("failed to encode response", "error", err)
+	}
 }
